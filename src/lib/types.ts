@@ -78,6 +78,123 @@ export interface Navigation {
   children: Navigation[];
 }
 
+export interface Form<TFields extends Record<string, FormField>> {
+  handle: string;
+  title: string;
+  api_url: string;
+  fields: TFields;
+}
+
+type FormFieldVisibility = "visible" | "hidden" | "computed" | "read_only";
+type FormFieldInstructionsPosition = "above" | "below";
+type FormFieldListable = "visible" | "hidden" | "not_listable";
+
+export interface DefaultFormField {
+  type:
+    | "text"
+    | "textarea"
+    | "checkboxes"
+    | "radio"
+    | "toggle"
+    | "assets"
+    | "integer"
+    | "spacer";
+  handle: string;
+  antlers: boolean;
+  display: string;
+  localizable: boolean;
+  listable: FormFieldListable;
+  instructions_position: FormFieldInstructionsPosition;
+  visibility: FormFieldVisibility;
+  replicator_preview: boolean;
+  hide_display: boolean;
+  width: number;
+  validate?: string[];
+  icon?: string;
+  instructions?: string;
+}
+
+export interface FormTextField extends DefaultFormField {
+  type: "text";
+  input_type:
+    | "text"
+    | "color"
+    | "date"
+    | "email"
+    | "hidden"
+    | "month"
+    | "number"
+    | "password"
+    | "tel"
+    | "time"
+    | "url"
+    | "week";
+  placeholder?: string;
+  character_limit?: number;
+  autocomplete?: string;
+  prepend?: string;
+  append?: string;
+}
+
+export interface FormTextareaField extends DefaultFormField {
+  type: "textarea";
+  character_limit?: number;
+  autocomplete?: string;
+  prepend?: string;
+  append?: string;
+}
+
+export interface FormCheckboxField extends DefaultFormField {
+  type: "checkboxes";
+  inline: boolean;
+  options?: Record<string, string | null>;
+}
+
+export interface FormRadioField extends DefaultFormField {
+  type: "radio";
+  inline: boolean;
+  options?: Record<string, string | null>;
+}
+
+export interface FormToggleField extends DefaultFormField {
+  type: "toggle";
+  default: boolean;
+}
+
+export interface FormAssetsField extends DefaultFormField {
+  type: "assets";
+  mode: "list" | "grid";
+  container: string;
+  restrict: boolean;
+  allow_uploads: boolean;
+  show_filename: boolean;
+  show_set_alt: boolean;
+  min_files?: number;
+  max_files?: number;
+  folder?: string;
+}
+
+export interface FormIntegerField extends DefaultFormField {
+  type: "integer";
+  prepend?: string;
+  append?: string;
+  default?: string;
+}
+
+export interface FormSpacerField extends DefaultFormField {
+  type: "spacer";
+}
+
+export type FormField =
+  | FormTextField
+  | FormTextareaField
+  | FormCheckboxField
+  | FormRadioField
+  | FormToggleField
+  | FormAssetsField
+  | FormIntegerField
+  | FormSpacerField;
+
 export interface Page {
   entryId: string;
   id: string;
@@ -125,6 +242,14 @@ type SnakeCase<S extends string> = S extends `${infer S1}${infer S2}`
   : S;
 
 type FilterCondition = (typeof filterConditions)[number];
+
+export type StatamicFormUtility<
+  TBlueprint extends Record<string, FormField>,
+  TForm,
+> = {
+  getAll: () => Promise<{ data: Form<TBlueprint>[] } | undefined>;
+  get: (id: TForm) => Promise<{ data: Form<TBlueprint> } | undefined>;
+};
 
 export type StatamicUtility<
   TBlueprint,
@@ -261,12 +386,14 @@ export type StatamicCreator = <
   TTaxonomy extends string | undefined,
   TGlobal extends string | undefined,
   TSite extends string | undefined,
+  TForm extends string | undefined,
 >({
   baseUrl,
   collections,
   navigations,
   taxonomies,
   globals,
+  forms,
   sites,
 }: {
   baseUrl: string;
@@ -274,6 +401,7 @@ export type StatamicCreator = <
   navigations?: TNavigation[];
   taxonomies?: TTaxonomy[];
   globals?: TGlobal[];
+  forms?: TForm[];
   sites?: TSite[];
 }) => Prettify<
   Omit<
@@ -282,6 +410,7 @@ export type StatamicCreator = <
       TTaxonomy,
       TGlobal,
       TNavigation,
+      TForm,
       TSite
     >,
     GetUndefinedKeys<
@@ -290,6 +419,7 @@ export type StatamicCreator = <
         TTaxonomy,
         TGlobal,
         TNavigation,
+        TForm,
         TSite
       >
     >
@@ -301,6 +431,7 @@ type StatamicCreatorReturnType<
   TTaxonomy,
   TGlobal,
   TNavigation,
+  TForm,
   TSite,
 > = {
   collection: IncludesUndefined<TCollection[]> extends true
@@ -323,4 +454,10 @@ type StatamicCreatorReturnType<
     : <TBlueprint extends object>(
         navigation: TNavigation,
       ) => StatamicUtility<TBlueprint, TNavigation, TTaxonomy, TSite>;
+  form: IncludesUndefined<TForm[]> extends true
+    ? undefined
+    : <TBlueprint extends Record<string, FormField>>() => StatamicFormUtility<
+        TBlueprint,
+        TForm
+      >;
 };

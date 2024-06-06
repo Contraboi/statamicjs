@@ -1,4 +1,10 @@
-import { StatamicCreator, StatamicUtility } from "./types";
+import {
+  FormField,
+  FormTextField,
+  StatamicCreator,
+  StatamicFormUtility,
+  StatamicUtility,
+} from "./types";
 
 const convertFromCamelCaseToSnakeCase = (value: string) => {
   return value.replace(/([A-Z])/g, "_$1").toLowerCase();
@@ -64,6 +70,34 @@ const createStatamicUtility = <
   };
 };
 
+const createStatamicFormUtility = <
+  TBlueprint extends Record<string, FormField>,
+  TForm extends string,
+>(
+  query: string,
+): StatamicFormUtility<TBlueprint, TForm> => {
+  return {
+    getAll: async () => {
+      try {
+        const response = await fetch(query);
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    get: async (id) => {
+      try {
+        const response = await fetch(`${query}/${id}`);
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        console.error(e);
+      }
+    },
+  };
+};
+
 /**
  * @param baseUrl - The base URL of the Statamic API.
  * @param collections - All collections handles in the Statamic CMS.
@@ -89,6 +123,7 @@ export const createStatamic: StatamicCreator = ({
   collections,
   taxonomies,
   globals,
+  forms,
   navigations,
 }) => {
   let query: string = "";
@@ -130,6 +165,13 @@ export const createStatamic: StatamicCreator = ({
     statmicUtilities["navigations"] = (navigation: Navigation) => {
       query = `${baseUrl}/navigation/${navigation}?`;
       return createStatamicUtility(query);
+    };
+  }
+
+  if (forms) {
+    statmicUtilities["forms"] = () => {
+      query = `${baseUrl}/forms`;
+      return createStatamicFormUtility(query);
     };
   }
 
@@ -246,3 +288,13 @@ export const filterConditions = [
    */
   "is_numberwang",
 ] as const;
+
+const statamic = createStatamic({
+  baseUrl: "https://example.com/api",
+  collections: ["blog", "pages"],
+  taxonomies: ["tags", "categories"],
+  globals: ["site"],
+  sites: ["en", "fr"],
+  forms: ["contact"],
+  navigations: ["main"],
+});
