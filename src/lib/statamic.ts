@@ -1,6 +1,5 @@
 import {
   FormField,
-  FormTextField,
   StatamicCreator,
   StatamicFormUtility,
   StatamicUtility,
@@ -288,13 +287,3 @@ export const filterConditions = [
    */
   "is_numberwang",
 ] as const;
-
-const statamic = createStatamic({
-  baseUrl: "https://example.com/api",
-  collections: ["blog", "pages"],
-  taxonomies: ["tags", "categories"],
-  globals: ["site"],
-  sites: ["en", "fr"],
-  forms: ["contact"],
-  navigations: ["main"],
-});
