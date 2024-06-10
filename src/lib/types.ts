@@ -1,12 +1,9 @@
+import { CacheEntry, CollectionCacheEntry } from "./utils";
 import { filterConditions } from "./statamic";
 
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
-
-type GetUndefinedKeys<T> = {
-  [K in keyof T]: T[K] extends undefined ? K : never;
-}[keyof T];
 
 export type StatamicData<T> = {
   data: T;
@@ -249,6 +246,13 @@ export interface Global {
   handle: string;
 }
 
+export type StatamicPath = {
+  locale: string | undefined | null;
+  mainSlug: string;
+  parentSlug: string | undefined | null;
+  slug: string;
+};
+
 type SnakeCase<S extends string> = S extends `${infer S1}${infer S2}`
   ? S2 extends Uncapitalize<S2>
     ? `${Uncapitalize<S1>}${SnakeCase<S2>}`
@@ -482,7 +486,7 @@ export type StatamicCreatorReturnType<
           ? undefined
           : TNavigation[];
         forms: IncludesUndefined<TForm[]> extends true ? undefined : TForm[];
-        sites: TSite[];
+        sites: TSite[] | undefined;
       },
       undefined
     >
@@ -528,19 +532,19 @@ export type StatamicCacheReturnType<
           {
             collection: IncludesUndefined<TCollections[]> extends true
               ? undefined
-              : Map<TCollections, StatamicData<Collection>>;
+              : CollectionCacheEntry<TCollections, StatamicData<Collection[]>>;
             taxonomy: IncludesUndefined<TTaxonomies[]> extends true
               ? undefined
-              : Map<TTaxonomies, StatamicData<Taxonomy>>;
+              : CacheEntry<TTaxonomies, StatamicData<Taxonomy[]>>;
             global: IncludesUndefined<TGlobals[]> extends true
               ? undefined
-              : Map<TGlobals, StatamicData<Global>>;
+              : CacheEntry<TGlobals, StatamicData<Global>>;
             navigation: IncludesUndefined<TNavigation[]> extends true
               ? undefined
-              : Map<TNavigation, StatamicData<Navigation>>;
+              : CacheEntry<TNavigation, StatamicData<Navigation[]>>;
             form: IncludesUndefined<TForms[]> extends true
               ? undefined
-              : Map<TForms, Form<Record<string, FormField>>>;
+              : CacheEntry<TForms, Form<Record<string, FormField>>>;
           },
           undefined
         >
@@ -552,21 +556,24 @@ export type StatamicCacheReturnType<
             {
               collection: IncludesUndefined<TCollections[]> extends true
                 ? undefined
-                : Map<TCollections, StatamicData<Collection>>;
+                : CollectionCacheEntry<
+                    TCollections,
+                    StatamicData<Collection[]>
+                  >;
               taxonomy: IncludesUndefined<TTaxonomies[]> extends true
                 ? undefined
-                : Map<TTaxonomies, StatamicData<Taxonomy>>;
+                : CacheEntry<TTaxonomies, StatamicData<Taxonomy[]>>;
               global: IncludesUndefined<TGlobals[]> extends true
                 ? undefined
-                : Map<TGlobals, StatamicData<Global>>;
+                : CacheEntry<TGlobals, StatamicData<Global>>;
               navigation: IncludesUndefined<TNavigation[]> extends true
                 ? undefined
-                : Map<TNavigation, StatamicData<Navigation>>;
+                : CacheEntry<TNavigation, StatamicData<Navigation[]>>;
               form: IncludesUndefined<TForms[]> extends true
                 ? undefined
-                : Map<TForms, Form<Record<string, FormField>>>;
+                : CacheEntry<TForms, Form<Record<string, FormField>>>;
             },
             undefined
-          >
+          > & {}
         >
       >;

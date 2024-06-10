@@ -10,6 +10,7 @@ import type {
   Form,
   Navigation,
 } from "./types";
+import { CacheEntry, CollectionCacheEntry } from "./utils";
 
 type GenericStatamic = StatamicCreatorReturnType<
   string,
@@ -31,28 +32,26 @@ type CacheReturn<T> = StatamicCacheReturnType<
 
 export async function createStatamicCache<T>({
   statamic: s,
-  expires = 0,
 }: {
   statamic: T;
-  expires?: number;
 }): Promise<StatamicCacheCreator<T>> {
   const statamic = s as GenericStatamic;
   const cache = statamic.meta.sites
     ? await createLocalizedCache(statamic)
     : await createCache(statamic);
 
-  return cache as any;
+  return cache as StatamicCacheCreator<T>;
 }
 
 async function createCache(statamic: GenericStatamic) {
   let cache = {} as CacheReturn<undefined>;
 
   if (statamic.meta.collections) {
-    const map = new Map<string, StatamicData<Collection>>();
+    const map = new CollectionCacheEntry<string, StatamicData<Collection[]>>();
 
     for (const collection of statamic.meta.collections) {
       const data = await statamic
-        .collection<Collection>(collection)
+        .collection<Collection[]>(collection)
         .limit(Number.MAX_SAFE_INTEGER)
         .get();
 
@@ -68,10 +67,10 @@ async function createCache(statamic: GenericStatamic) {
   }
 
   if (statamic.meta.taxonomies) {
-    const map = new Map<string, StatamicData<Taxonomy>>();
+    const map = new CacheEntry<string, StatamicData<Taxonomy[]>>();
 
     for (const taxonomy of statamic.meta.taxonomies) {
-      const data = await statamic.taxonomy<Taxonomy>(taxonomy).get();
+      const data = await statamic.taxonomy<Taxonomy[]>(taxonomy).get();
 
       if (!data) {
         console.error(`Taxonomy ${taxonomy} not found`);
@@ -85,7 +84,7 @@ async function createCache(statamic: GenericStatamic) {
   }
 
   if (statamic.meta.globals) {
-    const map = new Map<string, StatamicData<Global>>();
+    const map = new CacheEntry<string, StatamicData<Global>>();
 
     for (const global of statamic.meta.globals) {
       const data = await statamic.global<Global>(global).get();
@@ -102,7 +101,7 @@ async function createCache(statamic: GenericStatamic) {
   }
 
   if (statamic.meta.forms) {
-    const map = new Map<string, Form<Record<string, FormField>>>();
+    const map = new CacheEntry<string, Form<Record<string, FormField>>>();
 
     for (const form of statamic.meta.forms) {
       const data = await statamic.form().get(form);
@@ -119,10 +118,10 @@ async function createCache(statamic: GenericStatamic) {
   }
 
   if (statamic.meta.navigations) {
-    const map = new Map<string, StatamicData<Navigation>>();
+    const map = new CacheEntry<string, StatamicData<Navigation[]>>();
 
     for (const navigation of statamic.meta.navigations) {
-      const data = await statamic.navigation<Navigation>(navigation).get();
+      const data = await statamic.navigation<Navigation[]>(navigation).get();
 
       if (!data) {
         console.error(`Navigation ${navigation} not found`);
@@ -139,17 +138,23 @@ async function createCache(statamic: GenericStatamic) {
 }
 
 async function createLocalizedCache(statamic: GenericStatamic) {
-  let cache = {} as CacheReturn<string>;
+  if (!statamic.meta.sites) {
+    throw new Error("Site is required for localized cache");
+  }
 
+  let cache = {} as CacheReturn<string>;
   for (const site of statamic.meta.sites) {
     cache[site] = {} as CacheReturn<undefined>;
 
     if (statamic.meta.collections) {
-      const map = new Map<string, StatamicData<Collection>>();
+      const map = new CollectionCacheEntry<
+        string,
+        StatamicData<Collection[]>
+      >();
 
       for (const collection of statamic.meta.collections) {
         const data = await statamic
-          .collection<Collection>(collection)
+          .collection<Collection[]>(collection)
           .site(site)
           .limit(Number.MAX_SAFE_INTEGER)
           .get();
@@ -166,11 +171,11 @@ async function createLocalizedCache(statamic: GenericStatamic) {
     }
 
     if (statamic.meta.taxonomies) {
-      const map = new Map<string, StatamicData<Taxonomy>>();
+      const map = new CacheEntry<string, StatamicData<Taxonomy[]>>();
 
       for (const taxonomy of statamic.meta.taxonomies) {
         const data = await statamic
-          .taxonomy<Taxonomy>(taxonomy)
+          .taxonomy<Taxonomy[]>(taxonomy)
           .site(site)
           .get();
 
@@ -186,7 +191,7 @@ async function createLocalizedCache(statamic: GenericStatamic) {
     }
 
     if (statamic.meta.globals) {
-      const map = new Map<string, StatamicData<Global>>();
+      const map = new CacheEntry<string, StatamicData<Global>>();
 
       for (const global of statamic.meta.globals) {
         const data = await statamic.global<Global>(global).site(site).get();
@@ -203,7 +208,7 @@ async function createLocalizedCache(statamic: GenericStatamic) {
     }
 
     if (statamic.meta.forms) {
-      const map = new Map<string, Form<Record<string, FormField>>>();
+      const map = new CacheEntry<string, Form<Record<string, FormField>>>();
 
       for (const form of statamic.meta.forms) {
         const data = await statamic.form().get(form);
@@ -220,11 +225,11 @@ async function createLocalizedCache(statamic: GenericStatamic) {
     }
 
     if (statamic.meta.navigations) {
-      const map = new Map<string, StatamicData<Navigation>>();
+      const map = new CacheEntry<string, StatamicData<Navigation[]>>();
 
       for (const navigation of statamic.meta.navigations) {
         const data = await statamic
-          .navigation<Navigation>(navigation)
+          .navigation<Navigation[]>(navigation)
           .site(site)
           .get();
 
