@@ -1,7 +1,6 @@
 import { createStatamic } from "./statamic";
 import { createStatamicCache } from "./cache";
-import { Collection, Global, StatamicData } from "./types";
-const collections = ["info_pages"] as const;
+import { Global, StatamicData } from "./types";
 
 const navigations = [
   "header",
@@ -26,7 +25,7 @@ const globals = [
 ] as const;
 
 const statamic = createStatamic({
-  baseUrl: "https://mjob-statamic.osc-fr1.scalingo.io/api",
+  baseUrl: "",
   globals,
   sites: ["rs", "si"],
 });
@@ -38,6 +37,7 @@ export const statamicCache = await createStatamicCache({
 type StaticString = Global & {
   staticString: any[];
 };
+
 const paths =
   statamicCache.si.global.get<StatamicData<StaticString>>("static_strings");
 console.log(paths?.data.staticString);
