@@ -1,6 +1,8 @@
+import camelcaseKeys from "camelcase-keys";
 import {
   FormField,
   StatamicCreator,
+  StatamicData,
   StatamicFormUtility,
   StatamicUtility,
 } from "./types";
@@ -8,6 +10,28 @@ import {
 const convertFromCamelCaseToSnakeCase = (value: string) => {
   return value.replace(/([A-Z])/g, "_$1").toLowerCase();
 };
+
+async function fetcher<T>(query: string): Promise<T | undefined> {
+  try {
+    // Prints the request to the console with purple color
+    //\x1b[35m" is the color code for purple
+    //\x1b[34m" is the color code for blue
+    //\x1b[0m" is the color code for reset
+    console.log("\x1b[35m", "Statamic Request: ", "\x1b[34m", query, "\x1b[0m");
+    const response = await fetch(query);
+
+    const data = await response.json();
+
+    if (!data) {
+      console.error("No data found");
+      return;
+    }
+
+    return camelcaseKeys(data, { deep: true });
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 const createStatamicUtility = <
   TBlueprint extends object,
@@ -27,15 +51,7 @@ const createStatamicUtility = <
   };
 
   return {
-    get: async () => {
-      try {
-        const response = await fetch(query);
-        const data = await response.json();
-        return data;
-      } catch (e) {
-        console.error(e);
-      }
-    },
+    get: () => fetcher<StatamicData<TBlueprint>>(query),
     filter: (by, condition, value) => {
       query += `filter[${buildString(by)}:${condition}]=${value}&`;
       return createStatamicUtility(query);
@@ -45,7 +61,9 @@ const createStatamicUtility = <
       return createStatamicUtility(query);
     },
     site: (locale) => {
-      query.includes("navs")
+      const isDifferentParam =
+        query.includes("navs") || query.includes("globals");
+      isDifferentParam
         ? (query += `site=${locale}&`)
         : (query += `filter[site]=${locale}&`);
       return createStatamicUtility(query);
@@ -76,24 +94,8 @@ const createStatamicFormUtility = <
   query: string,
 ): StatamicFormUtility<TBlueprint, TForm> => {
   return {
-    getAll: async () => {
-      try {
-        const response = await fetch(query);
-        const data = await response.json();
-        return data;
-      } catch (e) {
-        console.error(e);
-      }
-    },
-    get: async (id) => {
-      try {
-        const response = await fetch(`${query}/${id}`);
-        const data = await response.json();
-        return data;
-      } catch (e) {
-        console.error(e);
-      }
-    },
+    getAll: () => fetcher(query),
+    get: async (id) => fetcher(`${query}/${id}`),
   };
 };
 
@@ -108,14 +110,14 @@ const createStatamicFormUtility = <
  * @example
  * const statamic = createStatamic({
  *    collections: ["blog", "pages"],
-      taxonomies: ["tags", "categories"],
-      globals: ["site"],
+ taxonomies: ["tags", "categories"],
+ globals: ["site"],
  *    sites: ["en", "fr"],
  *    navigations: ["main"],
  *    baseUrl: "https://example.com/api",
  * });
  *
-  const blogsWithHelloTitle = await statamic.collection<Collection>("blog").filter("title", "is", "hello").get();
+ const blogsWithHelloTitle = await statamic.collection<Collection>("blog").filter("title", "is", "hello").get();
  */
 export const createStatamic: StatamicCreator = ({
   baseUrl,
@@ -124,9 +126,9 @@ export const createStatamic: StatamicCreator = ({
   globals,
   forms,
   navigations,
+  sites,
 }) => {
   let query: string = "";
-  let statmicUtilities = {} as any;
 
   if (!baseUrl) {
     throw new Error("baseUrl is required");
@@ -135,46 +137,48 @@ export const createStatamic: StatamicCreator = ({
     throw new Error("baseUrl should not end with a slash (/)");
   }
 
-  if (collections) {
-    type Collection = (typeof collections)[number];
-    statmicUtilities["collections"] = (collection: Collection) => {
-      query = `${baseUrl}/collections/${collection}/entries?`;
-      return createStatamicUtility(query);
-    };
-  }
+  let obj = {
+    collection: !collections
+      ? undefined
+      : (collection: (typeof collections)[number]) => {
+          query = `${baseUrl}/collections/${collection}/entries?`;
+          return createStatamicUtility(query);
+        },
+    taxonomy: !taxonomies
+      ? undefined
+      : (taxonomy: (typeof taxonomies)[number]) => {
+          query = `${baseUrl}/taxonomies/${taxonomy}/terms?`;
+          return createStatamicUtility(query);
+        },
+    global: !globals
+      ? undefined
+      : (global: (typeof globals)[number]) => {
+          query = `${baseUrl}/globals/${global}?`;
+          return createStatamicUtility(query);
+        },
+    navigation: !navigations
+      ? undefined
+      : (navigation: (typeof navigations)[number]) => {
+          query = `${baseUrl}/navs/${navigation}/tree?`;
+          return createStatamicUtility(query);
+        },
+    form: !forms
+      ? undefined
+      : () => {
+          query = `${baseUrl}/forms`;
+          return createStatamicFormUtility(query);
+        },
+    meta: {
+      collections,
+      taxonomies,
+      globals,
+      sites,
+      forms,
+      navigations,
+    },
+  } as any; // TODO: I need to figure out how to type this properly, currently im braindead = @Planer myb you can try it?;
 
-  if (taxonomies) {
-    type Taxonomy = (typeof taxonomies)[number];
-    statmicUtilities["taxonomies"] = (taxonomy: Taxonomy) => {
-      query = `${baseUrl}/taxonomies/${taxonomy}/terms?`;
-      return createStatamicUtility(query);
-    };
-  }
-
-  if (globals) {
-    type Global = (typeof globals)[number];
-    statmicUtilities["globals"] = (global: Global) => {
-      query = `${baseUrl}/globals/${global}?`;
-      return createStatamicUtility(query);
-    };
-  }
-
-  if (navigations) {
-    type Navigation = (typeof navigations)[number];
-    statmicUtilities["navigations"] = (navigation: Navigation) => {
-      query = `${baseUrl}/navigation/${navigation}?`;
-      return createStatamicUtility(query);
-    };
-  }
-
-  if (forms) {
-    statmicUtilities["forms"] = () => {
-      query = `${baseUrl}/forms`;
-      return createStatamicFormUtility(query);
-    };
-  }
-
-  return statmicUtilities;
+  return obj;
 };
 /**
  * Array containing filter conditions for data filtering operations.

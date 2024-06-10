@@ -98,7 +98,8 @@ export interface DefaultFormField {
     | "toggle"
     | "assets"
     | "integer"
-    | "spacer";
+    | "spacer"
+    | "select";
   handle: string;
   antlers: boolean;
   display: string;
@@ -112,6 +113,17 @@ export interface DefaultFormField {
   validate?: string[];
   icon?: string;
   instructions?: string;
+}
+
+export interface FormSelectField extends DefaultFormField {
+  type: "select";
+  taggable: boolean;
+  pushTags: boolean;
+  multiple: boolean;
+  clearable: boolean;
+  searchable: boolean;
+  castBooleans: boolean;
+  options?: Record<string, string>;
 }
 
 export interface FormTextField extends DefaultFormField {
@@ -142,6 +154,7 @@ export interface FormTextareaField extends DefaultFormField {
   autocomplete?: string;
   prepend?: string;
   append?: string;
+  placeholder?: string;
 }
 
 export interface FormCheckboxField extends DefaultFormField {
@@ -193,7 +206,8 @@ export type FormField =
   | FormToggleField
   | FormAssetsField
   | FormIntegerField
-  | FormSpacerField;
+  | FormSpacerField
+  | FormSelectField;
 
 export interface Page {
   entryId: string;
@@ -380,6 +394,9 @@ type IncludesUndefined<T> = T extends (infer U)[]
     : false
   : false;
 
+type OmitByType<T, U> = {
+  [P in keyof T as T[P] extends U ? never : P]: T[P];
+};
 export type StatamicCreator = <
   TCollection extends string | undefined,
   TNavigation extends string | undefined,
@@ -397,36 +414,25 @@ export type StatamicCreator = <
   sites,
 }: {
   baseUrl: string;
-  collections?: TCollection[];
-  navigations?: TNavigation[];
-  taxonomies?: TTaxonomy[];
-  globals?: TGlobal[];
-  forms?: TForm[];
-  sites?: TSite[];
-}) => Prettify<
-  Omit<
-    StatamicCreatorReturnType<
-      TCollection,
-      TTaxonomy,
-      TGlobal,
-      TNavigation,
-      TForm,
-      TSite
-    >,
-    GetUndefinedKeys<
-      StatamicCreatorReturnType<
-        TCollection,
-        TTaxonomy,
-        TGlobal,
-        TNavigation,
-        TForm,
-        TSite
-      >
-    >
-  >
+  collections?: TCollection[] | readonly TCollection[];
+  navigations?: TNavigation[] | readonly TNavigation[];
+  taxonomies?: TTaxonomy[] | readonly TTaxonomy[];
+  globals?: TGlobal[] | readonly TGlobal[];
+  forms?: TForm[] | readonly TForm[];
+  sites?: TSite[] | readonly TSite[];
+}) => OmitByType<
+  StatamicCreatorReturnType<
+    TCollection,
+    TTaxonomy,
+    TGlobal,
+    TNavigation,
+    TForm,
+    TSite
+  >,
+  undefined
 >;
 
-type StatamicCreatorReturnType<
+export type StatamicCreatorReturnType<
   TCollection,
   TTaxonomy,
   TGlobal,
@@ -460,4 +466,107 @@ type StatamicCreatorReturnType<
         TBlueprint,
         TForm
       >;
+  meta: Prettify<
+    OmitByType<
+      {
+        collections: IncludesUndefined<TCollection[]> extends true
+          ? undefined
+          : TCollection[];
+        taxonomies: IncludesUndefined<TTaxonomy[]> extends true
+          ? undefined
+          : TTaxonomy[];
+        globals: IncludesUndefined<TGlobal[]> extends true
+          ? undefined
+          : TGlobal[];
+        navigations: IncludesUndefined<TNavigation[]> extends true
+          ? undefined
+          : TNavigation[];
+        forms: IncludesUndefined<TForm[]> extends true ? undefined : TForm[];
+        sites: TSite[];
+      },
+      undefined
+    >
+  >;
 };
+
+export type StatamicCacheCreator<TStatamic> =
+  TStatamic extends OmitByType<
+    StatamicCreatorReturnType<
+      infer TCollection,
+      infer TTaxonomy,
+      infer TGlobal,
+      infer TNavigation,
+      infer TForm,
+      infer TSite
+    >,
+    undefined | string
+  >
+    ? OmitByType<
+        StatamicCacheReturnType<
+          TCollection,
+          TTaxonomy,
+          TGlobal,
+          TNavigation,
+          TForm,
+          TSite
+        >,
+        undefined
+      >
+    : never;
+
+export type StatamicCacheReturnType<
+  TCollections,
+  TTaxonomies,
+  TGlobals,
+  TNavigation,
+  TForms,
+  TSite,
+> =
+  IncludesUndefined<TSite[]> extends true
+    ? Prettify<
+        OmitByType<
+          {
+            collection: IncludesUndefined<TCollections[]> extends true
+              ? undefined
+              : Map<TCollections, StatamicData<Collection>>;
+            taxonomy: IncludesUndefined<TTaxonomies[]> extends true
+              ? undefined
+              : Map<TTaxonomies, StatamicData<Taxonomy>>;
+            global: IncludesUndefined<TGlobals[]> extends true
+              ? undefined
+              : Map<TGlobals, StatamicData<Global>>;
+            navigation: IncludesUndefined<TNavigation[]> extends true
+              ? undefined
+              : Map<TNavigation, StatamicData<Navigation>>;
+            form: IncludesUndefined<TForms[]> extends true
+              ? undefined
+              : Map<TForms, Form<Record<string, FormField>>>;
+          },
+          undefined
+        >
+      >
+    : Record<
+        TSite extends string ? TSite : never,
+        Prettify<
+          OmitByType<
+            {
+              collection: IncludesUndefined<TCollections[]> extends true
+                ? undefined
+                : Map<TCollections, StatamicData<Collection>>;
+              taxonomy: IncludesUndefined<TTaxonomies[]> extends true
+                ? undefined
+                : Map<TTaxonomies, StatamicData<Taxonomy>>;
+              global: IncludesUndefined<TGlobals[]> extends true
+                ? undefined
+                : Map<TGlobals, StatamicData<Global>>;
+              navigation: IncludesUndefined<TNavigation[]> extends true
+                ? undefined
+                : Map<TNavigation, StatamicData<Navigation>>;
+              form: IncludesUndefined<TForms[]> extends true
+                ? undefined
+                : Map<TForms, Form<Record<string, FormField>>>;
+            },
+            undefined
+          >
+        >
+      >;
